@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
+# Declare globle variable
 SCRIPTFILE=${0##*/}
 PRINTERFILE="printer.sh"
+user_shell="/bin/zsh"
 
 source /root/$PRINTERFILE
 
@@ -91,18 +93,12 @@ enable_desktop_manager()
 }
 
 setup_shell(){
-    default_shell="/bin/zsh"
-
-    read -r -p "Enter your shell (press enter for default: $default_shell): " shell < /dev/tty
+    read -r -p "Enter your shell (press enter for default: /bin/zsh): " user_shell < /dev/tty
     # Set default value if name is empty
-    local shell=${shell:-$default_shell}
+    user_shell=${user_shell:-"/bin/zsh"}
 
     # set shell
-    print_message ">>> Setting root shell <<<"
-    chsh -s $shell
-
-    echo "$shell" # Return the value using echo
-
+    chsh -s $user_shell
 }
 
 setup_account(){
@@ -118,14 +114,15 @@ setup_account(){
     # root account
     print_message ">>> Setting root account and shell <<<"
 
-    user_shell=$(set_shell)
+    setup_shell
+
     print_message ">>> Done set root shell to $user_shell <<<"
     # This is insecure AF, don't use this if your machine is being monitored
     echo "root:$password" | chpasswd
     print_message ">>> Done set root password <<<"
 
     # user account
-    print_message ">>> Creating $username account and set the Shell <<<"
+    print_message ">>> Creating $username account and set the Shell as $user_shell <<<"
 
     useradd -m -G wheel -s $user_shell $username
 
@@ -191,6 +188,8 @@ clean_up()
 
 main()
 {
+    # Update repository
+    pacman -Sy
     set_zoneinfo &&
     enable_utc &&
     set_language &&
