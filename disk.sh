@@ -1,10 +1,15 @@
 #!/bin/bash
 
-set -euo pipefail
+#set -euo pipefail
 
-echo "List Disks: "
-lsblk
+function list_disk(){
+  echo "List Disks: "
+  lsblk
+}
 
+function format_and_mount_disk_without_password (){
+
+list_disk
 read -r -p "Enter block device to install arch onto (press enter for default: nvme0n1): " BLOCK_DEVICE
 BLOCK_DEVICE=${BLOCK_DEVICE:-nvme0n1}
 
@@ -60,3 +65,24 @@ mount "/dev/${ROOT_PARTITION}" /mnt
 mount --mkdir "/dev/${BOOT_PARTITION}" /mnt/boot
 #enable swap with swapon
 swapon "/dev/${SWAP_PARTITION}"
+
+}
+
+function main (){
+  read -p "Do you want to auto formet and mount your disk? (yes/no): " choice
+
+  case "$choice" in
+    yes|YES|y|Y)
+      format_and_mount_disk_without_password
+      ;;
+    no|NO|n|N)
+      echo "Show your disk format and mount"
+      list_disk
+      ;;
+    *)
+      echo "Invalid choice"
+      ;;
+  esac
+}
+
+main

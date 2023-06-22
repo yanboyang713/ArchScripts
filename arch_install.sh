@@ -7,12 +7,11 @@ BASEDIR=$(readlink -f ${0%/*})
 RECIPESDIR="${BASEDIR}/recipes"
 
 PRINTERFILE="printer.sh"
-ENVFILE="env.sh"
 CONFFILE="config.sh"
 YAYFILE="yay_install.sh"
+DISKFILE="disk.sh"
 
 PRINTERPATH="${BASEDIR}/${PRINTERFILE}"
-ENVPATH="${BASEDIR}/${ENVFILE}"
 CONFPATH="${BASEDIR}/${CONFFILE}"
 YAYPATH="${BASEDIR}/${YAYFILE}"
 
@@ -29,7 +28,6 @@ PACMANPATH="${BASEDIR}/pacman_custom.conf"
 # --------------------------------------- #
 
 source $PRINTERPATH
-source $ENVPATH
 
 select_base_packages()
 {
@@ -44,25 +42,52 @@ select_base_packages()
 
 select_desktop_environment()
 {
-    print_message "Selecting ${DESKTOP_ENV}..."
+    print_message "Selecting Desktop Environment..."
 
-    source "${RECIPESDIR}/desktops/${DESKTOP_ENV}.sh"
+    # Set keymap
+    default_desktop_environment="i3"
+    print_message "Default Desktop Environment: $default_desktop_environment. You also could choose kde, gnome, i3, x11"
+
+    read -r -p "Enter your Desktop Environment (press enter for default: $default_desktop_environment): " desktop_environment < /dev/tty
+
+    # Set default value if name is empty
+    desktop_environment=${desktop_environment:-$default_desktop_environment}
+
+    source "${RECIPESDIR}/desktops/${desktop_environment}.sh"
     export PACKAGES="${PACKAGES} ${RECIPE_PKGS}"
 }
 
 select_bootloader()
 {
-    print_message "Selecting ${BOOTLOADER}..."
+    print_message "Selecting bootloader..."
 
-    source "${RECIPESDIR}/bootloaders/${BOOTLOADER}.sh"
+    # Set bootloader
+    default_bootloader="grub"
+    print_message "Default bootloader: $default_bootloader. You also could choose refind, grub"
+
+    read -r -p "Enter your bootloader (press enter for default: $default_bootloader): " bootloader < /dev/tty
+
+    # Set default value if name is empty
+    bootloader=${bootloader:-$default_bootloader}
+
+    source "${RECIPESDIR}/bootloaders/${bootloader}.sh"
     export PACKAGES="${PACKAGES} ${RECIPE_PKGS}"
 }
 
 select_video_drivers()
 {
-    print_message "Selecting ${XORG_DRIVERS} drivers..."
+    print_message "Selecting xorg drivers..."
 
-    source "${RECIPESDIR}/video_drivers/${XORG_DRIVERS}.sh"
+    # Set xorg drivers
+    default_xorg_drivers="all"
+    print_message "Default xorg driver: $default_xorg_drivers. You also could choose nvidia, amd, vbox, intel, all"
+
+    read -r -p "Enter your xorg driver (press enter for default: $default_xorg_drivers): " xorg_drivers < /dev/tty
+
+    # Set default value if name is empty
+    xorg_drivers=${xorg_drivers:-$default_xorg_drivers}
+
+    source "${RECIPESDIR}/video_drivers/${xorg_drivers}.sh"
     export PACKAGES="${PACKAGES} ${RECIPE_PKGS}"
 }
 
@@ -79,7 +104,6 @@ generate_fstab()
 
 copy_scripts()
 {
-    cp $ENVPATH $MOUNTPOINT/root -v
     cp $CONFPATH $MOUNTPOINT/root -v
     cp $PRINTERPATH $MOUNTPOINT/root -v
     cp $YAYPATH $MOUNTPOINT/root -v
@@ -87,38 +111,8 @@ copy_scripts()
 
 configure_system()
 {
-    print_warning ">>> Configuring your system with $DESKTOP_ENV, $BOOTLOADER and $XORG_DRIVERS... <<<"
-    arch-chroot $MOUNTPOINT /bin/zsh -c "cd && ./$CONFFILE && rm $CONFFILE $ENVFILE -f"
-}
-
-prompt_environment()
-{
-    print_message "Your system will be installed using the data in '$ENVPATH'"
-    print_warning "Make sure your data is correct before proceeding!"
-    echo ""
-
-    print_trailing "Do you wish to edit '$ENVPATH'? ((Y)es / (n)o / e(x)it: "
-    read ans
-
-    case $ans in
-        'n'|'N')
-            print_success "Ok, installing with settings retrieved from '$ENVPATH'..."
-            sleep 1
-        ;;
-        'x'|'X')
-            print_failure "Aborting installation!"
-            exit 1
-        ;;
-        *)
-            $EDITOR $ENVPATH
-            print_message "--------------------------------------------"
-            print_message "Press ENTER to continue, or Ctrl+C to abort."
-            print_message "--------------------------------------------"
-
-            read
-            source $ENVPATH
-        ;;
-    esac
+    print_warning ">>> Configuring your system ... <<<"
+    arch-chroot $MOUNTPOINT /bin/zsh -c "cd && ./$CONFFILE && rm $CONFFILE -f"
 }
 
 check_mounted_drive() {
@@ -147,16 +141,20 @@ install_system()
 
 verify_installation()
 {
-    [[ ! -f $MOUNTPOINT/root/$CONFFILE && ! -f $MOUNTPOINT/root/$ENVFILE && ! -f $MOUNTPOINT/root/$PRINTERFILE ]]
+    [[ ! -f $MOUNTPOINT/root/$CONFFILE && ! -f $MOUNTPOINT/root/$PRINTERFILE ]]
+}
+
+disk_format_mount(){
+    source $DISKFILE
 }
 
 main()
 {
+    # Disk format and mount
+    disk_format_mount
+
     # Check pre-install state
     check_mounted_drive
-
-    # Prompt user to check environment file before installing
-    prompt_environment
 
     # Install and verify
     install_system
