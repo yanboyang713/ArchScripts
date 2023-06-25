@@ -3,21 +3,22 @@
 # Declare globle variable
 SCRIPTFILE=${0##*/}
 PRINTERFILE="printer.sh"
+GLOBALFILE="global_var.sh"
 user_shell="/bin/zsh"
 
 source /root/$PRINTERFILE
+source /root/$GLOBALFILE
 
 set_zoneinfo()
 {
     print_message ">>> Linking zoneinfo <<<"
-    # Get the current time zone
-    default_timezone=$(timedatectl show --property=Timezone --value)
-    # Display the time zone
-    echo "Default Time Zone: $default_timezone. Check /usr/share/zoneinfo/ for more options"
 
-    read -r -p "Enter your Time Zone (press enter for default: $default_timezone): " timezone < /dev/tty
+    # Display the time zone
+    echo "Default Time Zone: $ZONEINFO. Check /usr/share/zoneinfo/ for more options"
+
+    read -r -p "Enter your Time Zone (press enter for default: $ZONEINFO): " timezone < /dev/tty
     # Set default value if name is empty
-    timezone=${timezone:-$default_timezone}
+    timezone=${timezone:-$ZONEINFO}
 
     ln -s /usr/share/zoneinfo/$timezone /etc/localtime -f
 }
@@ -182,6 +183,7 @@ clean_up()
 {
     print_success ">>> Ready! Cleaning up <<<"
 
+    rm $GLOBALFILE -vf
     rm $PRINTERFILE -vf
     rm $SCRIPTFILE -vf
 }

@@ -7,6 +7,7 @@ BASEDIR=$(readlink -f ${0%/*})
 RECIPESDIR="${BASEDIR}/recipes"
 
 PRINTERFILE="printer.sh"
+GLOBALFILE="global_var.sh"
 CONFFILE="config.sh"
 YAYFILE="yay_install.sh"
 DISKFILE="disk.sh"
@@ -14,6 +15,7 @@ DISKFILE="disk.sh"
 PRINTERPATH="${BASEDIR}/${PRINTERFILE}"
 CONFPATH="${BASEDIR}/${CONFFILE}"
 YAYPATH="${BASEDIR}/${YAYFILE}"
+GLOBALPATH="${BASEDIR}/${GLOBALFILE}"
 
 # --------------------------------------- #
 
@@ -28,6 +30,23 @@ PACMANPATH="${BASEDIR}/pacman_custom.conf"
 # --------------------------------------- #
 
 source $PRINTERPATH
+source $GLOBALPATH
+
+change_variable_name_as_new_value() {
+    local file_path=$1
+    local variable_name=$2
+    local new_value=$3
+
+    # Check if the file exists
+    if [[ -f "$file_path" ]]; then
+        # Replace the variable's value in the file using sed
+        sed -i --expression "s@$variable_name=.*@$variable_name=\"$new_value\"@" "$file_path"
+        echo "Variable '$variable_name' updated in file '$file_path'"
+    else
+        echo "File not found: $file_path"
+    fi
+
+}
 
 select_base_packages()
 {
@@ -104,6 +123,7 @@ generate_fstab()
 
 copy_scripts()
 {
+    cp $GLOBALPATH $MOUNTPOINT/root -v
     cp $CONFPATH $MOUNTPOINT/root -v
     cp $PRINTERPATH $MOUNTPOINT/root -v
     cp $YAYPATH $MOUNTPOINT/root -v
@@ -112,7 +132,7 @@ copy_scripts()
 configure_system()
 {
     print_warning ">>> Configuring your system ... <<<"
-    arch-chroot $MOUNTPOINT /bin/zsh -c "cd && ./$CONFFILE && rm $CONFFILE -f"
+    arch-chroot $MOUNTPOINT /bin/zsh -c "cd && ./$CONFFILE && rm $CONFFILE $GLOBALFILE -f"
 }
 
 check_mounted_drive() {
@@ -141,15 +161,34 @@ install_system()
 
 verify_installation()
 {
-    [[ ! -f $MOUNTPOINT/root/$CONFFILE && ! -f $MOUNTPOINT/root/$PRINTERFILE ]]
+    [[ ! -f $MOUNTPOINT/root/$CONFFILE && ! -f $MOUNTPOINT/root/$GLOBALFILE && ! -f $MOUNTPOINT/root/$PRINTERFILE ]]
 }
 
 disk_format_mount(){
     source $DISKFILE
 }
 
+set_default_timezone(){
+
+    ip_data=$(curl -s "http://ip-api.com/json")
+    timezone=$(echo "$ip_data" | jq -r '.timezone')
+
+    # Set the detected time zone
+    timedatectl set-timezone "$timezone"
+
+    # Print the detected time zone
+    echo "Detected time zone: $timezone"
+    variable_name="ZONEINFO"
+
+    change_variable_name_as_new_value $GLOBALPATH $variable_name $timezone
+
+}
+
 main()
 {
+    # set_default_timezone
+    set_default_timezone
+
     # Disk format and mount
     disk_format_mount
 
